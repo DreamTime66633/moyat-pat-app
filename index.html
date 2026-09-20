@@ -203,6 +203,7 @@ section.on{display:block}
       <div class="vow-big" id="sayText" style="font-size:18px"></div>
       <button class="primary ghost" id="copyBtn" style="margin-top:8px">Копирай</button>
     </div>
+    <p style="margin:14px 0 0"><button class="link" id="kindLink" style="padding:10px 0">Какво съм оценил досега</button></p>
   </div>
 
   <button class="primary" id="saveDay" style="margin-top:0">Запази деня</button>
@@ -301,6 +302,8 @@ section.on{display:block}
     <textarea id="w3"></textarea>
     <button class="primary" id="saveWeek">Запази седмицата</button>
     <div class="toast" id="weekToast" role="status"></div>
+    <p class="hint" id="weekSaved" style="margin:4px 0 0"></p>
+    <p style="margin:14px 0 0"><button class="link" id="weeksLink" style="padding:10px 0">Минали недели</button></p>
   </div>
 
   <p class="foot" style="padding-top:20px"><button class="link" id="dataLink" style="padding:12px">Моите данни</button></p>
@@ -345,6 +348,22 @@ section.on{display:block}
     <button class="primary ghost danger" id="wipeBtn" style="margin-top:0">Изтрий всичко</button>
   </div>
   <button class="primary ghost" id="dataBack">Назад</button>
+</section>
+
+<!-- МИНАЛИ НЕДЕЛИ -->
+<section id="weeks">
+  <h1>Минали недели</h1>
+  <p class="lead">Твоите думи, както си ги написал.</p>
+  <div class="block" id="weeksList"></div>
+  <button class="primary ghost" id="weeksBack">Назад</button>
+</section>
+
+<!-- КАКВО СЪМ ОЦЕНИЛ -->
+<section id="kinds">
+  <h1>Какво съм оценил</h1>
+  <p class="lead">Всичко добро, което си забелязал у нея.</p>
+  <div class="block" id="kindsList"></div>
+  <button class="primary ghost" id="kindsBack">Назад</button>
 </section>
 
 </main>
@@ -431,6 +450,8 @@ function goTab(name){
   document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===name));
   if(name==='week')renderWeek();
   if(name==='moments')renderMoments();
+  if(name==='weeks')renderWeeks();
+  if(name==='kinds')renderKinds();
   window.scrollTo(0,0);
 }
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>goTab(b.dataset.tab));
@@ -439,6 +460,10 @@ $('helpLink1').onclick=()=>goTab('help');
 $('helpBack').onclick=()=>goTab('today');
 $('dataLink').onclick=()=>goTab('data');
 $('dataBack').onclick=()=>goTab('week');
+$('weeksLink').onclick=()=>goTab('weeks');
+$('weeksBack').onclick=()=>goTab('week');
+$('kindLink').onclick=()=>goTab('kinds');
+$('kindsBack').onclick=()=>goTab('today');
 
 // ---- Моето изречение ----
 function renderVow(){
@@ -580,11 +605,51 @@ function renderWeek(){
     :'<p style="margin:0;color:var(--muted)">Запиши днешния ден в „Днес“ и тук ще започне да се вижда пътят ти.</p>';
   const w=db.weeks[weekKey()]||{};
   ['w1','w2','w3','w4'].forEach(id=>$(id).value=w[id]||'');
+  renderSavedAt(w);
 }
 $('saveWeek').onclick=()=>{
   const w={};['w1','w2','w3','w4'].forEach(id=>w[id]=$(id).value.trim());
-  db.weeks[weekKey()]=w;flash('weekToast',save()?'Седмицата е запазена.':'Не успях да запазя.');
+  w.at=Date.now();
+  db.weeks[weekKey()]=w;
+  flash('weekToast',save()?'Седмицата е запазена.':'Не успях да запазя.');
+  renderSavedAt(w);
 };
+function renderSavedAt(w){
+  $('weekSaved').textContent=w&&w.at
+    ?'Запазено: '+new Date(w.at).toLocaleDateString('bg-BG',{weekday:'long',day:'numeric',month:'long'})
+      +', '+new Date(w.at).toLocaleTimeString('bg-BG',{hour:'2-digit',minute:'2-digit'})
+    :'';
+}
+
+// ---- Памет: минали недели и оценки ----
+const WQ=[['w1','Получи се'],['w2','Кипвах'],['w4','Научих'],['w3','Ще направя различно']];
+function dayDate(key){const [y,m,d]=key.split('-').map(Number);return new Date(y,m-1,d)}
+function weekRange(key){
+  const a=dayDate(key),b=dayDate(key);b.setDate(b.getDate()+6);
+  const long={day:'numeric',month:'long'};
+  return a.getMonth()===b.getMonth()
+    ? a.getDate()+'–'+b.toLocaleDateString('bg-BG',long)
+    : a.toLocaleDateString('bg-BG',long)+' – '+b.toLocaleDateString('bg-BG',long);
+}
+function renderWeeks(){
+  const rows=Object.entries(db.weeks)
+    .filter(([,w])=>WQ.some(([id])=>w[id]))
+    .sort((a,b)=>b[0].localeCompare(a[0]));
+  $('weeksList').innerHTML=rows.length
+    ? rows.map(([k,w])=>`<div class="log"><b>${esc(weekRange(k))}</b>`
+        +WQ.filter(([id])=>w[id]).map(([id,label])=>`<div>${label}: ${esc(w[id])}</div>`).join('')
+        +'</div>').join('')
+    : '<p style="margin:0;color:var(--muted)">Тук ще се събират неделните ти разговори. Първият е в „Седмица“.</p>';
+}
+function renderKinds(){
+  const rows=Object.entries(db.days)
+    .filter(([,d])=>d.kind)
+    .sort((a,b)=>b[0].localeCompare(a[0]));
+  $('kindsList').innerHTML=rows.length
+    ? rows.map(([k,d])=>`<div class="log"><b>${esc(dayDate(k).toLocaleDateString('bg-BG',{day:'numeric',month:'long'}))}</b>`
+        +`<div>${esc(d.kind)}</div></div>`).join('')
+    : '<p style="margin:0;color:var(--muted)">Тук ще се събира всичко добро, което забележиш. Първото е в „Днес“.</p>';
+}
 
 // ---- Моите данни ----
 $('exportBtn').onclick=()=>{
