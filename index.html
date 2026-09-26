@@ -81,6 +81,8 @@ button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px soli
   text-transform:uppercase;letter-spacing:.06em}
 .vow span{font-size:18px;line-height:1.4;font-weight:500}
 .vow.empty span{color:var(--muted);font-weight:400}
+.vow.why{background:var(--surface);border-color:var(--line)}
+.vow.why span{font-size:16px}
 
 /* Пауза */
 .pause-wrap{display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 0}
@@ -173,6 +175,11 @@ section.on{display:block}
   <button class="vow empty" id="vowCard">
     <b>Моето изречение</b>
     <span id="vowText">Напиши едно изречение „Ако…, тогава аз ще…“</span>
+  </button>
+
+  <button class="vow why empty" id="whyCard">
+    <b>Защо го правя</b>
+    <span id="whyText">Напиши едно изречение „Правя това, защото…“</span>
   </button>
 
   <div class="block">
@@ -371,6 +378,20 @@ section.on{display:block}
 </main>
 
 <!-- Модал: моето изречение -->
+<div class="modal" id="whyModal">
+  <div class="sheet">
+    <h2>Защо го правя</h2>
+    <p class="hint" style="margin:0 0 4px">Това не е цел със срок или число, а причина. Котва за лошите вечери.</p>
+    <p class="hint" style="margin:0 0 4px">Причината е моя. Не промяна на партньора.</p>
+    <p class="hint" style="margin:0">Например: „Правя това, защото искам вкъщи да е спокойно.“ Или: „Правя това, защото не искам да ме помнят с повишения тон.“</p>
+    <label class="small" for="whyInput">Правя това, защото…</label>
+    <input type="text" id="whyInput" placeholder="искам вкъщи да е спокойно">
+    <button class="primary" id="whySave">Запази</button>
+    <div class="toast" id="whyToast" role="status"></div>
+    <button class="primary ghost" id="whySkip" style="margin-top:0">Ще го напиша после</button>
+  </div>
+</div>
+
 <div class="modal" id="vowModal">
   <div class="sheet">
     <h2>Моето изречение</h2>
@@ -410,6 +431,7 @@ section.on{display:block}
     <p style="margin:0 0 14px">Много хора се борят с точно това. Не си единственият и не си счупен.</p>
     <p style="margin:0 0 6px">Ако приятел ти беше разказал този ден, какво щеше да му кажеш?</p>
     <p class="hint" style="margin:0">Кажи го на себе си.</p>
+    <div class="vow-big" id="kindWhy" style="display:none;font-size:18px;margin-top:14px"></div>
     <button class="primary" id="kindClose">Затвори</button>
   </div>
 </div>
@@ -434,7 +456,7 @@ const KEY='moyat-pat-v1';
 function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){return false}}
 let db=load(); db.days=db.days||{}; db.moments=db.moments||[]; db.weeks=db.weeks||{};
-db.pauses=db.pauses||[]; db.vow=db.vow||null;
+db.pauses=db.pauses||[]; db.vow=db.vow||null; db.why=db.why||null;
 
 const dkey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const today=dkey(new Date());
@@ -510,6 +532,29 @@ $('vowSave').onclick=()=>{
   save();renderVow();closeModal('vowModal');
 };
 
+// ---- Защо го правя ----
+function renderWhy(){
+  const card=$('whyCard');
+  if(db.why){
+    $('whyText').textContent='Правя това, защото '+db.why;
+    card.classList.remove('empty');
+  }else{
+    $('whyText').textContent='Напиши едно изречение „Правя това, защото…“';
+    card.classList.add('empty');
+  }
+}
+$('whyCard').onclick=()=>{
+  if(db.why)$('whyInput').value=db.why;
+  openModal('whyModal');
+};
+$('whySkip').onclick=()=>closeModal('whyModal');
+$('whySave').onclick=()=>{
+  const w=$('whyInput').value.trim();
+  if(!w){flash('whyToast','Напиши едно изречение.');return}
+  db.why=w;save();renderWhy();closeModal('whyModal');
+};
+renderWhy();
+
 // ---- Днес ----
 const cur=db.days[today]||{};
 document.querySelectorAll('#today .choices').forEach(g=>{
@@ -541,7 +586,11 @@ $('saveDay').onclick=()=>{
   cur.kind=$('kind').value.trim();
   db.days[today]=cur;
   flash('dayToast',save()?'Денят е запазен.':'Не успях да запазя. Провери дали браузърът позволява съхранение.');
-  if(cur.rude===3)setTimeout(()=>openModal('kindModal'),600);
+  if(cur.rude===3)setTimeout(()=>{
+    if(db.why){$('kindWhy').textContent='Правя това, защото '+db.why;$('kindWhy').style.display=''}
+    else $('kindWhy').style.display='none';
+    openModal('kindModal');
+  },600);
 };
 $('kindClose').onclick=()=>closeModal('kindModal');
 
