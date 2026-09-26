@@ -455,6 +455,11 @@ function goTab(name){
   window.scrollTo(0,0);
 }
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>goTab(b.dataset.tab));
+// Пряк път: адрес с #pauza отваря направо Паузата (Back Tap, втора икона).
+// Хешът се изчиства веднага, иначе второ натискане на прекия път не прави нищо.
+function hashPauza(){if(location.hash==='#pauza'){goTab('pause');history.replaceState(null,'',location.pathname+location.search)}}
+hashPauza();
+window.addEventListener('hashchange',hashPauza);
 document.querySelectorAll('.helpLink').forEach(b=>b.onclick=()=>goTab('help'));
 $('helpLink1').onclick=()=>goTab('help');
 $('helpBack').onclick=()=>goTab('today');
