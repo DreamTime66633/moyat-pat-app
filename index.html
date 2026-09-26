@@ -277,6 +277,8 @@ section.on{display:block}
     <button class="primary" id="saveMoment">Запиши момента</button>
     <div class="toast" id="momToast" role="status"></div>
   </div>
+  <h2 id="patternHead" style="display:none">Схемата досега</h2>
+  <div class="block" id="patternCard" style="display:none"></div>
   <h2>Записани моменти</h2>
   <div class="block" id="momList"></div>
 </section>
@@ -582,7 +584,31 @@ $('saveMoment').onclick=()=>{
   renderMoments();
 };
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+// Карта „Схемата досега“: само броене на собствените записи, никакви
+// етикети и съвети. Появява се от петия момент (доклада, раздел 5).
+function renderPattern(){
+  const ms=db.moments, on=ms.length>=5;
+  $('patternHead').style.display=on?'':'none';
+  $('patternCard').style.display=on?'':'none';
+  if(!on)return;
+  const lines=[];
+  // Част от деня: показва се само ако една част събира поне половината.
+  const part=h=>h>=23||h<6?'нощ (23–6 ч.)':h<12?'сутрин (6–12 ч.)':h<18?'следобед (12–18 ч.)':'вечер (18–23 ч.)';
+  const pc={};ms.forEach(m=>{const p=part(new Date(m.t).getHours());pc[p]=(pc[p]||0)+1});
+  const tops=Object.entries(pc).sort((a,b)=>b[1]-a[1]);
+  if(tops[0][1]*2>=ms.length&&(!tops[1]||tops[1][1]<tops[0][1]))
+    lines.push(tops[0][1]+' от '+ms.length+' момента са '+tops[0][0]);
+  // Най-повтаряна дума от „Какво почувствах“: по веднъж на момент, от 2 появи.
+  const wc={};ms.forEach(m=>{new Set((m.f||'').toLowerCase().split(/[^а-яa-z]+/).filter(w=>w.length>=3)).forEach(w=>wc[w]=(wc[w]||0)+1)});
+  const tw=Object.entries(wc).sort((a,b)=>b[1]-a[1]);
+  if(tw.length&&tw[0][1]>=2&&(!tw[1]||tw[1][1]<tw[0][1]))
+    lines.push('Най-често си записвал: „'+esc(tw[0][0])+'“ ('+tw[0][1]+' пъти)');
+  $('patternCard').innerHTML=lines.length
+    ?lines.map(l=>'<p style="margin:0 0 6px">'+l+'</p>').join('')
+    :'<p style="margin:0;color:var(--muted)">Още няма ясна схема. Това също е информация — продължавай да записваш.</p>';
+}
 function renderMoments(){
+  renderPattern();
   const el=$('momList');
   if(!db.moments.length){el.innerHTML='<p style="margin:0;color:var(--muted)">Още няма записи. Първият запис е началото на схемата.</p>';return}
   el.innerHTML=db.moments.slice(0,30).map(m=>`<div class="log"><b>${new Date(m.t).toLocaleString('bg-BG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}${m.f?' · '+esc(m.f):''}</b>
